@@ -107,6 +107,16 @@ export function useDuel(duelId: bigint) {
   });
 }
 
+export function useOwnerOf(tokenId: bigint) {
+  return useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: DUEL_ABI,
+    functionName: "ownerOf",
+    args: [tokenId],
+    query: { enabled: tokenId > 0n },
+  });
+}
+
 export function useNextTokenId() {
   return useReadContract({
     address: CONTRACT_ADDRESS,
@@ -203,7 +213,7 @@ export function useCreateChallenge() {
 
 export function useAcceptChallenge() {
   const { address } = useAccount();
-  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const accept = (
@@ -225,12 +235,12 @@ export function useAcceptChallenge() {
     });
   };
 
-  return { accept, isPending, isConfirming, isSuccess, hash };
+  return { accept, isPending, isConfirming, isSuccess, hash, error };
 }
 
 export function useRevealMove() {
   const { address } = useAccount();
-  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const reveal = (duelId: bigint, move: MoveType, nonce: `0x${string}`) => {
@@ -246,7 +256,7 @@ export function useRevealMove() {
     });
   };
 
-  return { reveal, isPending, isConfirming, isSuccess, hash };
+  return { reveal, isPending, isConfirming, isSuccess, hash, error };
 }
 
 export function useResolveDuel() {

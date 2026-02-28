@@ -16,6 +16,16 @@ import { formatEther } from "viem";
 export function DuelArena() {
   const { address } = useAccount();
 
+  const parseWriteError = (error?: Error | null) => {
+    if (!error) return "";
+    const message = error.message || "";
+    const executionReverted = message.match(/execution reverted(?::\s*)?([^\n]*)/i);
+    if (executionReverted?.[1]) return executionReverted[1].trim();
+    const details = message.match(/Details:\s*([^\n]+)/i);
+    if (details?.[1]) return details[1].trim();
+    return message.split("\n")[0] || "Transaction reverted.";
+  };
+
   // ─── Reveal ───
   const [revealDuelId, setRevealDuelId] = useState("");
   const [revealMove, setRevealMove] = useState<MoveType | null>(null);
@@ -363,6 +373,12 @@ export function DuelArena() {
             {revealError && (
               <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-400">
                 ❌ {revealError}
+              </div>
+            )}
+
+            {reveal.error && (
+              <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-300">
+                ⚠️ Reveal failed: {parseWriteError(reveal.error)}
               </div>
             )}
           </div>

@@ -7,6 +7,7 @@ import {
   useAcceptChallenge,
   useBounty,
   useDuel,
+  useOwnerOf,
   useNextDuelId,
   useNextBountyId,
   useNextTokenId,
@@ -42,8 +43,22 @@ export function ChallengeSection() {
   const { data: nextBountyId } = useNextBountyId();
   const { data: nextTokenId } = useNextTokenId();
   const { data: acceptDuelData } = useDuel(BigInt(acceptDuelId || "0"));
+  const {
+    data: acceptTokenOwner,
+    isError: isAcceptTokenOwnerError,
+  } = useOwnerOf(BigInt(acceptTokenId || "0"));
   const [createError, setCreateError] = useState<string>("");
   const [acceptError, setAcceptError] = useState<string>("");
+
+  const parseWriteError = (error?: Error | null) => {
+    if (!error) return "";
+    const message = error.message || "";
+    const executionReverted = message.match(/execution reverted(?::\s*)?([^\n]*)/i);
+    if (executionReverted?.[1]) return executionReverted[1].trim();
+    const details = message.match(/Details:\s*([^\n]+)/i);
+    if (details?.[1]) return details[1].trim();
+    return message.split("\n")[0] || "Transaction reverted.";
+  };
 
   const handleCreateChallenge = () => {
     setCreateError("");
@@ -96,8 +111,21 @@ export function ChallengeSection() {
       setAcceptError(`Duel #${acceptDuelId} is not in CREATED state (current: ${DUEL_STATES[Number(acceptDuelData.state)]}).`);
       return;
     }
+    const now = Math.floor(Date.now() / 1000);
+    if (Number(acceptDuelData.commitDeadline) > 0 && now > Number(acceptDuelData.commitDeadline)) {
+      setAcceptError("Commit window expired for this duel. Ask challenger to create a new challenge.");
+      return;
+    }
     if (acceptDuelData.target.toLowerCase() !== address.toLowerCase()) {
       setAcceptError(`You are not the target. Target is ${acceptDuelData.target.slice(0,6)}...${acceptDuelData.target.slice(-4)}. Switch wallet.`);
+      return;
+    }
+    if (isAcceptTokenOwnerError) {
+      setAcceptError(`Token #${acceptTokenId} does not exist yet or cannot be read on this contract.`);
+      return;
+    }
+    if (!acceptTokenOwner || acceptTokenOwner.toLowerCase() !== address.toLowerCase()) {
+      setAcceptError(`Token #${acceptTokenId} is not owned by connected wallet.`);
       return;
     }
     const requiredStake = acceptDuelData.challengerStake;
@@ -274,7 +302,7 @@ export function ChallengeSection() {
                 type="number"
                 min="1"
                 value={acceptTokenId}
-                onChange={(e) => setAcceptTokenId(e.target.value)}
+                onChange={(e) => { setAcceptTokenId(e.target.value); setAcceptError(""); }}
                 className="w-full bg-monad-dark border border-monad-border rounded-lg px-3 py-2 text-white"
               />
             </div>
@@ -341,6 +369,12 @@ export function ChallengeSection() {
           {acceptError && (
             <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-400">
               ❌ {acceptError}
+            </div>
+          )}
+
+          {accept.error && (
+            <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-300">
+              ⚠️ Accept failed: {parseWriteError(accept.error)}
             </div>
           )}
         </div>
