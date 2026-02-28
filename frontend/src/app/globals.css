@@ -10,26 +10,89 @@
 }
 
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 12% 18%, rgba(131, 110, 249, 0.2), transparent 35%),
+    radial-gradient(circle at 85% 25%, rgba(56, 189, 248, 0.13), transparent 35%),
+    radial-gradient(circle at 55% 88%, rgba(236, 72, 153, 0.12), transparent 38%),
+    var(--bg);
   color: #e2e2e2;
   font-family: "Inter", system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: -25vmax;
+  pointer-events: none;
+  background:
+    conic-gradient(from 0deg at 50% 50%, rgba(131, 110, 249, 0.12), rgba(34, 211, 238, 0.08), rgba(131, 110, 249, 0.1), rgba(244, 114, 182, 0.08), rgba(131, 110, 249, 0.12));
+  filter: blur(80px) saturate(120%);
+  animation: rotateSlow 28s linear infinite;
+  z-index: -2;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.9), transparent 80%);
+  z-index: -1;
 }
 
 /* Glowing card borders */
 .glow-card {
-  @apply border border-monad-border rounded-xl bg-monad-card p-6;
-  transition: box-shadow 0.3s;
+  @apply border border-monad-border rounded-2xl bg-monad-card p-6;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 14px 50px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(131, 110, 249, 0.15);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
 }
+
+.glow-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(450px circle at var(--mx, 50%) var(--my, 0%), rgba(131, 110, 249, 0.2), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
 .glow-card:hover {
-  box-shadow: 0 0 30px #836EF922;
+  border-color: rgba(131, 110, 249, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 1px rgba(131, 110, 249, 0.25),
+    0 24px 80px rgba(131, 110, 249, 0.2),
+    0 12px 32px rgba(0, 0, 0, 0.45);
+  transform: translateY(-4px);
+}
+
+.glow-card:hover::before {
+  opacity: 1;
 }
 
 /* Move buttons */
 .move-btn {
-  @apply px-6 py-3 rounded-lg font-bold text-lg transition-all duration-200 cursor-pointer;
+  @apply px-6 py-3 rounded-xl font-bold text-lg transition-all duration-200 cursor-pointer;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 .move-btn:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.02);
 }
 .move-strike { @apply bg-red-600 hover:bg-red-500 text-white; }
 .move-guard  { @apply bg-blue-600 hover:bg-blue-500 text-white; }
@@ -38,10 +101,255 @@ body {
 /* Stat bars */
 .stat-bar {
   @apply h-2 rounded-full;
-  background: linear-gradient(90deg, #836EF9, #b794f6);
+  background: linear-gradient(90deg, #836EF9, #b794f6, #5eead4);
+  box-shadow: 0 0 20px rgba(131, 110, 249, 0.5);
 }
 
 /* Spinner */
 .spinner {
   @apply w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block;
+  filter: drop-shadow(0 0 8px rgba(131, 110, 249, 0.6));
+}
+
+.hero-title {
+  background: linear-gradient(96deg, #ffffff 0%, #c6bbff 40%, #8ad8ff 70%, #b8ffde 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 18px rgba(131, 110, 249, 0.35);
+}
+
+.hero-accent {
+  color: #cabfff;
+  text-shadow: 0 0 20px rgba(131, 110, 249, 0.45);
+}
+
+.metric-card {
+  position: relative;
+  isolation: isolate;
+}
+
+.metric-card::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 0.95rem;
+  z-index: -1;
+  background: linear-gradient(135deg, rgba(131, 110, 249, 0.5), rgba(34, 211, 238, 0.25), rgba(236, 72, 153, 0.3));
+  filter: blur(14px);
+  opacity: 0.55;
+}
+
+.section-shell {
+  position: relative;
+}
+
+.section-shell::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 1.25rem;
+  pointer-events: none;
+  background: linear-gradient(140deg, rgba(131, 110, 249, 0.16), rgba(34, 211, 238, 0.12), rgba(236, 72, 153, 0.12));
+  opacity: 0.7;
+  filter: blur(22px);
+  z-index: -1;
+}
+
+.floating-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(20px);
+  opacity: 0.6;
+  pointer-events: none;
+  animation: drift 9s ease-in-out infinite;
+}
+
+.primary-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.primary-btn::after {
+  content: "";
+  position: absolute;
+  top: -120%;
+  left: -40%;
+  width: 50%;
+  height: 300%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: rotate(18deg);
+  transition: left 0.6s ease;
+}
+
+.primary-btn:hover::after {
+  left: 120%;
+}
+
+input,
+select,
+textarea {
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, background-color 0.25s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(131, 110, 249, 0.75) !important;
+  box-shadow: 0 0 0 3px rgba(131, 110, 249, 0.2), 0 0 28px rgba(131, 110, 249, 0.28);
+  background: rgba(13, 13, 18, 0.75);
+}
+
+@keyframes rotateSlow {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.04);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes drift {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -18px, 0) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.arena-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.arena-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 0%, rgba(131, 110, 249, 0.22), transparent 45%);
+}
+
+.fighter-stage {
+  position: relative;
+}
+
+.sticker-fighter {
+  position: relative;
+}
+
+.fighter-avatar {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 20px 35px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.fighter-aura {
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+}
+
+.fighter-emoji {
+  position: relative;
+  z-index: 2;
+  font-size: 3rem;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.45));
+}
+
+.fighter-idle .fighter-emoji {
+  animation: fighterIdle 1.8s ease-in-out infinite;
+}
+
+.fighter-strike .fighter-emoji {
+  animation: fighterStrike 0.65s ease-in-out infinite;
+}
+
+.fighter-guard .fighter-emoji {
+  animation: fighterGuard 0.85s ease-in-out infinite;
+}
+
+.fighter-heal .fighter-emoji {
+  animation: fighterHeal 0.95s ease-in-out infinite;
+}
+
+.fighter-win .fighter-emoji {
+  animation: fighterWin 0.7s ease-in-out infinite;
+}
+
+.arena-clash {
+  color: #f8b4ff;
+  text-shadow: 0 0 16px rgba(248, 180, 255, 0.8), 0 0 34px rgba(236, 72, 153, 0.55);
+  animation: clashPulse 0.8s ease-in-out infinite;
+}
+
+.clash-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  border: 2px solid rgba(248, 180, 255, 0.6);
+  box-shadow: 0 0 20px rgba(248, 180, 255, 0.55);
+  animation: clashRing 1.2s ease-out infinite;
+}
+
+@keyframes fighterIdle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes fighterStrike {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  30% { transform: translateX(10px) rotate(-6deg); }
+  60% { transform: translateX(-5px) rotate(4deg); }
+}
+
+@keyframes fighterGuard {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes fighterHeal {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.1); }
+}
+
+@keyframes fighterWin {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-8deg) scale(1.08); }
+  75% { transform: rotate(8deg) scale(1.08); }
+}
+
+@keyframes clashPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes clashRing {
+  0% { opacity: 0.9; transform: translate(-50%, -50%) scale(0.7); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.35); }
 }

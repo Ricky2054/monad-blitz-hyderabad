@@ -244,7 +244,7 @@ export function ChallengeSection() {
           <button
             onClick={handleCreateChallenge}
             disabled={loading || selectedMove === null}
-            className="w-full py-3 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold transition-all disabled:opacity-50"
+            className="primary-btn w-full py-3 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold transition-all disabled:opacity-50"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -341,7 +341,7 @@ export function ChallengeSection() {
           <button
             onClick={handleAcceptChallenge}
             disabled={aLoading || acceptMove === null}
-            className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all disabled:opacity-50"
+            className="primary-btn w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all disabled:opacity-50"
           >
             {aLoading ? (
               <span className="flex items-center justify-center gap-2">

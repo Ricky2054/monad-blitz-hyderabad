@@ -25,7 +25,7 @@ export function MintSection() {
       <button
         onClick={mint}
         disabled={loading}
-        className="w-full py-3 rounded-lg bg-monad-purple hover:bg-monad-purple/80 text-white font-bold text-lg transition-all disabled:opacity-50"
+        className="primary-btn w-full py-3 rounded-lg bg-monad-purple hover:bg-monad-purple/80 text-white font-bold text-lg transition-all disabled:opacity-50"
       >
         {loading ? (
           <span className="flex items-center justify-center gap-2">

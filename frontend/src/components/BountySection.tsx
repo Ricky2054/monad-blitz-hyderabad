@@ -49,7 +49,7 @@ export function BountySection() {
         <button
           onClick={handlePost}
           disabled={loading || !target || !amount}
-          className="w-full py-3 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-white font-bold transition-all disabled:opacity-50"
+          className="primary-btn w-full py-3 rounded-lg bg-yellow-600 hover:bg-yellow-500 text-white font-bold transition-all disabled:opacity-50"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
