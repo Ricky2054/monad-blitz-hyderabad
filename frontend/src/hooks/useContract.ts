@@ -36,6 +36,45 @@ export function computeCommitment(
 
 export const DUEL_STATES = ["NONE", "CREATED", "ACTIVE", "RESOLVED", "CANCELED"] as const;
 
+// ─── Commitment Storage (localStorage) ─────────────────────
+export interface CommitmentData {
+  duelId: string;
+  move: MoveType;
+  nonce: string;
+  address: string;
+  role: "challenger" | "target";
+  timestamp: number;
+}
+
+const STORAGE_KEY = "bounty-duel-commitments";
+
+export function saveCommitment(data: CommitmentData) {
+  try {
+    const existing = getAllCommitments();
+    const key = `${data.duelId}-${data.address.toLowerCase()}`;
+    existing[key] = data;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+  } catch {}
+}
+
+export function getCommitment(duelId: string, address: string): CommitmentData | null {
+  try {
+    const all = getAllCommitments();
+    return all[`${duelId}-${address.toLowerCase()}`] || null;
+  } catch {
+    return null;
+  }
+}
+
+function getAllCommitments(): Record<string, CommitmentData> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
 // ─── Read Hooks ─────────────────────────────────────────────
 export function useCharacter(tokenId: bigint) {
   return useReadContract({
@@ -154,14 +193,14 @@ export function useAcceptChallenge() {
     duelId: bigint,
     tokenId: bigint,
     commit: `0x${string}`,
-    stakeMON: string
+    stakeWei: bigint
   ) => {
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: DUEL_ABI,
       functionName: "acceptChallenge",
       args: [duelId, tokenId, commit],
-      value: parseEther(stakeMON),
+      value: stakeWei,
     });
   };
 

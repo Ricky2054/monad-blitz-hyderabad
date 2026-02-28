@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAccount } from "wagmi";
 import {
   useRevealMove,
   useResolveDuel,
   useDuel,
+  getCommitment,
   MOVES,
   DUEL_STATES,
   MoveType,
@@ -12,27 +14,136 @@ import {
 import { formatEther } from "viem";
 
 export function DuelArena() {
+  const { address } = useAccount();
+
   // ─── Reveal ───
   const [revealDuelId, setRevealDuelId] = useState("");
   const [revealMove, setRevealMove] = useState<MoveType | null>(null);
   const [revealNonce, setRevealNonce] = useState("");
+  const [revealError, setRevealError] = useState("");
+  const [autoLoaded, setAutoLoaded] = useState(false);
   const reveal = useRevealMove();
+  const { data: revealDuel } = useDuel(BigInt(revealDuelId || "0"));
 
   // ─── Resolve ───
   const [resolveDuelId, setResolveDuelId] = useState("");
+  const [resolveError, setResolveError] = useState("");
   const resolveHook = useResolveDuel();
+  const { data: resolveDuel } = useDuel(BigInt(resolveDuelId || "0"));
 
   // ─── View Duel ───
   const [viewDuelId, setViewDuelId] = useState("");
   const { data: duel } = useDuel(BigInt(viewDuelId || "0"));
 
+  // Auto-load saved commitment when duel ID or address changes
+  useEffect(() => {
+    if (!revealDuelId || !address) {
+      setAutoLoaded(false);
+      return;
+    }
+    const saved = getCommitment(revealDuelId, address);
+    if (saved) {
+      setRevealMove(saved.move);
+      setRevealNonce(saved.nonce);
+      setAutoLoaded(true);
+    } else {
+      setAutoLoaded(false);
+    }
+  }, [revealDuelId, address]);
+
   const handleReveal = () => {
-    if (!revealDuelId || revealMove === null || !revealNonce) return;
+    setRevealError("");
+    if (!revealDuelId || revealMove === null || !revealNonce) {
+      setRevealError("Fill all fields: Duel ID, Move, and Nonce.");
+      return;
+    }
+    if (!address) {
+      setRevealError("Connect your wallet first.");
+      return;
+    }
+    // Validate duel state
+    if (revealDuel) {
+      const state = Number(revealDuel.state);
+      if (state === 0) {
+        setRevealError(`Duel #${revealDuelId} doesn't exist.`);
+        return;
+      }
+      if (state !== 2) {
+        setRevealError(`Duel #${revealDuelId} is in ${DUEL_STATES[state]} state — must be ACTIVE to reveal.`);
+        return;
+      }
+      // Check if user is a participant
+      const isChallenger = revealDuel.challenger.toLowerCase() === address.toLowerCase();
+      const isTarget = revealDuel.target.toLowerCase() === address.toLowerCase();
+      if (!isChallenger && !isTarget) {
+        setRevealError("You are not a participant in this duel. Switch wallet.");
+        return;
+      }
+      // Check if already revealed
+      if (isChallenger && revealDuel.challengerRevealed) {
+        setRevealError("You (challenger) already revealed your move!");
+        return;
+      }
+      if (isTarget && revealDuel.targetRevealed) {
+        setRevealError("You (target) already revealed your move!");
+        return;
+      }
+      // Check reveal deadline
+      const now = Math.floor(Date.now() / 1000);
+      if (Number(revealDuel.revealDeadline) > 0 && now > Number(revealDuel.revealDeadline)) {
+        setRevealError("Reveal deadline has passed!");
+        return;
+      }
+    }
     reveal.reveal(BigInt(revealDuelId), revealMove, revealNonce as `0x${string}`);
   };
 
   const handleResolve = () => {
-    if (!resolveDuelId) return;
+    setResolveError("");
+    if (!resolveDuelId) {
+      setResolveError("Enter a Duel ID.");
+      return;
+    }
+    if (resolveDuel) {
+      const state = Number(resolveDuel.state);
+      if (state === 0) {
+        setResolveError(`Duel #${resolveDuelId} doesn't exist.`);
+        return;
+      }
+      if (state === 3) {
+        setResolveError("This duel is already RESOLVED.");
+        return;
+      }
+      if (state === 4) {
+        setResolveError("This duel was CANCELED.");
+        return;
+      }
+      if (state === 2) {
+        // ACTIVE — check if both revealed or deadline passed
+        const bothRevealed = resolveDuel.challengerRevealed && resolveDuel.targetRevealed;
+        const now = Math.floor(Date.now() / 1000);
+        const deadlinePassed = Number(resolveDuel.revealDeadline) > 0 && now > Number(resolveDuel.revealDeadline);
+        if (!bothRevealed && !deadlinePassed) {
+          const remaining = Number(resolveDuel.revealDeadline) - now;
+          const mins = Math.ceil(remaining / 60);
+          setResolveError(
+            `Both players must reveal first, or wait for reveal deadline (${mins} min remaining). ` +
+            `Challenger: ${resolveDuel.challengerRevealed ? "revealed" : "pending"} | Target: ${resolveDuel.targetRevealed ? "revealed" : "pending"}`
+          );
+          return;
+        }
+      }
+      if (state === 1) {
+        // CREATED — check if commit deadline passed
+        const now = Math.floor(Date.now() / 1000);
+        if (now <= Number(resolveDuel.commitDeadline)) {
+          const remaining = Number(resolveDuel.commitDeadline) - now;
+          const mins = Math.ceil(remaining / 60);
+          setResolveError(`Duel still in CREATED state. Wait ${mins} min for commit deadline, or target needs to accept.`);
+          return;
+        }
+      }
+    }
     resolveHook.resolve(BigInt(resolveDuelId));
   };
 
@@ -162,7 +273,7 @@ export function DuelArena() {
             <span className="text-2xl">👁️</span> Reveal Move
           </h3>
           <p className="text-gray-500 text-sm mb-4">
-            Submit your move + nonce to prove your commitment.
+            Your saved move &amp; nonce are auto-loaded from your commit.
           </p>
 
           <div className="space-y-3">
@@ -177,8 +288,31 @@ export function DuelArena() {
               />
             </div>
 
+            {/* Auto-loaded indicator */}
+            {autoLoaded && (
+              <div className="bg-green-900/30 border border-green-800 rounded-lg p-2 text-xs text-green-400">
+                ✅ Move &amp; nonce auto-loaded from your saved commitment
+              </div>
+            )}
+
+            {/* Duel state info */}
+            {revealDuel && Number(revealDuel.state) > 0 && (
+              <div className="bg-monad-dark/50 rounded-lg p-2 text-xs space-y-1">
+                <div><span className="text-gray-500">State:</span> <span className={Number(revealDuel.state) === 2 ? "text-yellow-400 font-bold" : "text-gray-400"}>{DUEL_STATES[Number(revealDuel.state)]}</span></div>
+                <div>
+                  <span className="text-gray-500">Reveals:</span>{" "}
+                  <span className={revealDuel.challengerRevealed ? "text-green-400" : "text-red-400"}>Challenger {revealDuel.challengerRevealed ? "✅" : "❌"}</span>
+                  {" | "}
+                  <span className={revealDuel.targetRevealed ? "text-green-400" : "text-red-400"}>Target {revealDuel.targetRevealed ? "✅" : "❌"}</span>
+                </div>
+                {Number(revealDuel.revealDeadline) > 0 && (
+                  <div><span className="text-gray-500">Deadline:</span> <span className="text-gray-300">{new Date(Number(revealDuel.revealDeadline) * 1000).toLocaleTimeString()}</span></div>
+                )}
+              </div>
+            )}
+
             <div>
-              <label className="text-xs text-gray-400 block mb-2">Your Move</label>
+              <label className="text-xs text-gray-400 block mb-2">Your Move {autoLoaded && <span className="text-green-400">(auto)</span>}</label>
               <div className="flex gap-2">
                 {MOVES.map((m, i) => (
                   <button
@@ -199,7 +333,7 @@ export function DuelArena() {
             </div>
 
             <div>
-              <label className="text-xs text-gray-400">Your Nonce (saved from commit step)</label>
+              <label className="text-xs text-gray-400">Nonce {autoLoaded && <span className="text-green-400">(auto)</span>}</label>
               <input
                 type="text"
                 placeholder="0x..."
@@ -219,12 +353,17 @@ export function DuelArena() {
                   <span className="spinner" /> Revealing...
                 </span>
               ) : (
-                "Reveal Move"
+                `Reveal Move${revealMove !== null ? ` (${MOVES[revealMove]})` : ""}`
               )}
             </button>
 
             {reveal.isSuccess && (
               <p className="text-green-400 text-sm">✅ Move revealed on-chain!</p>
+            )}
+            {revealError && (
+              <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-400">
+                ❌ {revealError}
+              </div>
             )}
           </div>
         </div>
@@ -235,8 +374,7 @@ export function DuelArena() {
             <span className="text-2xl">🏆</span> Resolve Duel
           </h3>
           <p className="text-gray-500 text-sm mb-4">
-            Anyone can call this. The contract determines winner on-chain and transfers 
-            bounty + stakes automatically.
+            Anyone can call after both reveal (or deadline passes).
           </p>
 
           <div className="space-y-3">
@@ -250,6 +388,33 @@ export function DuelArena() {
                 className="w-full bg-monad-dark border border-monad-border rounded-lg px-3 py-2 text-white"
               />
             </div>
+
+            {/* Resolve status info */}
+            {resolveDuel && Number(resolveDuel.state) > 0 && (
+              <div className="bg-monad-dark/50 rounded-lg p-2 text-xs space-y-1">
+                <div><span className="text-gray-500">State:</span> <span className={
+                  Number(resolveDuel.state) === 3 ? "text-green-400 font-bold" :
+                  Number(resolveDuel.state) === 4 ? "text-red-400 font-bold" :
+                  "text-yellow-400"
+                }>{DUEL_STATES[Number(resolveDuel.state)]}</span></div>
+                {Number(resolveDuel.state) === 2 && (
+                  <>
+                    <div>
+                      <span className="text-gray-500">Reveals:</span>{" "}
+                      <span className={resolveDuel.challengerRevealed ? "text-green-400" : "text-red-400"}>Challenger {resolveDuel.challengerRevealed ? "✅" : "❌"}</span>
+                      {" | "}
+                      <span className={resolveDuel.targetRevealed ? "text-green-400" : "text-red-400"}>Target {resolveDuel.targetRevealed ? "✅" : "❌"}</span>
+                    </div>
+                    {resolveDuel.challengerRevealed && resolveDuel.targetRevealed && (
+                      <div className="text-green-400 font-bold">Ready to resolve!</div>
+                    )}
+                  </>
+                )}
+                {Number(resolveDuel.state) === 3 && resolveDuel.winner && (
+                  <div><span className="text-gray-500">Winner:</span> <span className="text-green-400 font-mono">{resolveDuel.winner.slice(0,6)}...{resolveDuel.winner.slice(-4)}</span></div>
+                )}
+              </div>
+            )}
 
             <button
               onClick={handleResolve}
@@ -267,7 +432,7 @@ export function DuelArena() {
 
             {resolveHook.isSuccess && (
               <div className="bg-green-900/30 border border-green-800 rounded-lg p-3 text-sm text-green-400">
-                ✅ Duel resolved! Winner has received bounty + stakes.{" "}
+                ✅ Duel resolved! Winner received bounty + stakes.{" "}
                 <a
                   href={`https://testnet.monadexplorer.com/tx/${resolveHook.hash}`}
                   target="_blank"
@@ -275,6 +440,11 @@ export function DuelArena() {
                 >
                   View tx
                 </a>
+              </div>
+            )}
+            {resolveError && (
+              <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-400">
+                ❌ {resolveError}
               </div>
             )}
           </div>

@@ -12,7 +12,9 @@ import {
   useNextTokenId,
   computeCommitment,
   generateNonce,
+  saveCommitment,
   MOVES,
+  DUEL_STATES,
   MoveType,
 } from "@/hooks/useContract";
 
@@ -30,7 +32,6 @@ export function ChallengeSection() {
   // ─── Accept Challenge ─────
   const [acceptDuelId, setAcceptDuelId] = useState("");
   const [acceptTokenId, setAcceptTokenId] = useState("");
-  const [acceptStake, setAcceptStake] = useState("");
   const [acceptMove, setAcceptMove] = useState<MoveType | null>(null);
   const [acceptNonce, setAcceptNonce] = useState<string>("");
   const accept = useAcceptChallenge();
@@ -69,17 +70,39 @@ export function ChallengeSection() {
     const expectedDuelId = nextDuelId;
 
     const commit = computeCommitment(expectedDuelId, address, selectedMove, nonce as `0x${string}`);
+    // Save to localStorage so DuelArena can auto-load for reveal
+    saveCommitment({
+      duelId: String(expectedDuelId),
+      move: selectedMove,
+      nonce,
+      address,
+      role: "challenger",
+      timestamp: Date.now(),
+    });
     create(BigInt(bountyId), BigInt(tokenId), commit, stake);
   };
 
   const handleAcceptChallenge = () => {
     setAcceptError("");
-    if (!acceptDuelId || !acceptTokenId || !acceptStake || acceptMove === null || !address) {
-      setAcceptError("Fill all fields: Duel ID, Token ID, Move, and Stake.");
+    if (!acceptDuelId || !acceptTokenId || acceptMove === null || !address) {
+      setAcceptError("Fill all fields: Duel ID, Token ID, and Move.");
       return;
     }
-    if (acceptDuelData && acceptDuelData.target.toLowerCase() !== address.toLowerCase()) {
-      setAcceptError("You are not the target of this duel. Only the bounty target can accept.");
+    if (!acceptDuelData || Number(acceptDuelData.state) === 0) {
+      setAcceptError(`Duel #${acceptDuelId} doesn't exist.`);
+      return;
+    }
+    if (Number(acceptDuelData.state) !== 1) {
+      setAcceptError(`Duel #${acceptDuelId} is not in CREATED state (current: ${DUEL_STATES[Number(acceptDuelData.state)]}).`);
+      return;
+    }
+    if (acceptDuelData.target.toLowerCase() !== address.toLowerCase()) {
+      setAcceptError(`You are not the target. Target is ${acceptDuelData.target.slice(0,6)}...${acceptDuelData.target.slice(-4)}. Switch wallet.`);
+      return;
+    }
+    const requiredStake = acceptDuelData.challengerStake;
+    if (requiredStake === 0n) {
+      setAcceptError("Invalid duel: challenger stake is 0.");
       return;
     }
     const nonce = generateNonce();
@@ -90,7 +113,17 @@ export function ChallengeSection() {
       acceptMove,
       nonce as `0x${string}`
     );
-    accept.accept(BigInt(acceptDuelId), BigInt(acceptTokenId), commit, acceptStake);
+    // Save to localStorage so DuelArena can auto-load for reveal
+    saveCommitment({
+      duelId: acceptDuelId,
+      move: acceptMove,
+      nonce,
+      address,
+      role: "target",
+      timestamp: Date.now(),
+    });
+    // Send exact challengerStake in wei — no manual input needed
+    accept.accept(BigInt(acceptDuelId), BigInt(acceptTokenId), commit, requiredStake);
   };
 
   const loading = isPending || isConfirming;
@@ -268,16 +301,14 @@ export function ChallengeSection() {
             </div>
           </div>
 
-          <div>
-            <label className="text-xs text-gray-400">Stake (MON) — must match challenger</label>
-            <input
-              type="text"
-              placeholder="0.05"
-              value={acceptStake}
-              onChange={(e) => setAcceptStake(e.target.value)}
-              className="w-full bg-monad-dark border border-monad-border rounded-lg px-3 py-2 text-white"
-            />
-          </div>
+          {/* Auto-read stake from duel data */}
+          {acceptDuelData && Number(acceptDuelData.state) === 1 && (
+            <div className="bg-monad-dark/50 rounded-lg p-3 text-sm space-y-1">
+              <div><span className="text-gray-500">Challenger:</span> <span className="text-monad-purple font-mono text-xs">{acceptDuelData.challenger.slice(0,6)}...{acceptDuelData.challenger.slice(-4)}</span></div>
+              <div><span className="text-gray-500">Required Stake:</span> <span className="text-yellow-400 font-bold">{(Number(acceptDuelData.challengerStake) / 1e18).toFixed(4)} MON</span> <span className="text-green-400 text-xs">(auto-matched)</span></div>
+              <div><span className="text-gray-500">State:</span> <span className="text-blue-400">{DUEL_STATES[Number(acceptDuelData.state)]}</span></div>
+            </div>
+          )}
 
           <button
             onClick={handleAcceptChallenge}
@@ -289,7 +320,9 @@ export function ChallengeSection() {
                 <span className="spinner" /> Sending...
               </span>
             ) : (
-              "Accept Challenge"
+              acceptDuelData && Number(acceptDuelData.state) === 1
+                ? `Accept Challenge (${(Number(acceptDuelData.challengerStake) / 1e18).toFixed(4)} MON)`
+                : "Accept Challenge"
             )}
           </button>
 
