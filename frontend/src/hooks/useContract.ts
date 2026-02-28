@@ -1,10 +1,11 @@
 import {
+  useAccount,
   useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { DUEL_ABI } from "@/config/abi";
-import { CONTRACT_ADDRESS } from "@/config/chain";
+import { CONTRACT_ADDRESS, monadTestnet } from "@/config/chain";
 import { parseEther, keccak256, encodePacked } from "viem";
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -132,13 +133,18 @@ export function useNextDuelId() {
 
 // ─── Write Hooks ────────────────────────────────────────────
 export function useMintCharacter() {
+  const { address } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const mint = () => {
+    if (!address) return;
+
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: DUEL_ABI,
+      chain: monadTestnet,
+      account: address,
       functionName: "mintCharacter",
     });
   };
@@ -147,13 +153,18 @@ export function useMintCharacter() {
 }
 
 export function usePostBounty() {
+  const { address } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const post = (target: `0x${string}`, amountMON: string) => {
+    if (!address) return;
+
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: DUEL_ABI,
+      chain: monadTestnet,
+      account: address,
       functionName: "postBounty",
       args: [target],
       value: parseEther(amountMON),
@@ -164,6 +175,7 @@ export function usePostBounty() {
 }
 
 export function useCreateChallenge() {
+  const { address } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
@@ -173,9 +185,13 @@ export function useCreateChallenge() {
     commit: `0x${string}`,
     stakeMON: string
   ) => {
+    if (!address) return;
+
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: DUEL_ABI,
+      chain: monadTestnet,
+      account: address,
       functionName: "createChallenge",
       args: [bountyId, tokenId, commit],
       value: parseEther(stakeMON),
@@ -186,6 +202,7 @@ export function useCreateChallenge() {
 }
 
 export function useAcceptChallenge() {
+  const { address } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
@@ -195,9 +212,13 @@ export function useAcceptChallenge() {
     commit: `0x${string}`,
     stakeWei: bigint
   ) => {
+    if (!address) return;
+
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: DUEL_ABI,
+      chain: monadTestnet,
+      account: address,
       functionName: "acceptChallenge",
       args: [duelId, tokenId, commit],
       value: stakeWei,
@@ -208,13 +229,18 @@ export function useAcceptChallenge() {
 }
 
 export function useRevealMove() {
+  const { address } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const reveal = (duelId: bigint, move: MoveType, nonce: `0x${string}`) => {
+    if (!address) return;
+
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: DUEL_ABI,
+      chain: monadTestnet,
+      account: address,
       functionName: "revealMove",
       args: [duelId, move, nonce],
     });
@@ -224,13 +250,18 @@ export function useRevealMove() {
 }
 
 export function useResolveDuel() {
+  const { address } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const resolve = (duelId: bigint) => {
+    if (!address) return;
+
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: DUEL_ABI,
+      chain: monadTestnet,
+      account: address,
       functionName: "resolveDuel",
       args: [duelId],
     });
