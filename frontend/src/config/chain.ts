@@ -18,4 +18,4 @@ export const monadTestnet = defineChain({
 
 // Deployed contract address on Monad Testnet
 export const CONTRACT_ADDRESS =
-  "0xeC8f597e685DD10C6A1e9873e09fD1CF0e0FEa1F" as `0x${string}`;
+  "0xBB6Dc2c0cC85297762FEAe002f002ef1F43e7795" as `0x${string}`;

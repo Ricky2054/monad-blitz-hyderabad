@@ -366,6 +366,19 @@ contract AutonomousBountyDuel is ERC721 {
         return x > y ? (x - y) : 0;
     }
 
+    // ─── View Functions ──────────────────────────────────────────
+    function getCharacter(uint256 tokenId) external view returns (Character memory) {
+        return characters[tokenId];
+    }
+
+    function getBounty(uint256 bountyId) external view returns (Bounty memory) {
+        return bounties[bountyId];
+    }
+
+    function getDuel(uint256 duelId) external view returns (Duel memory) {
+        return duels[duelId];
+    }
+
     function computeCommitment(
         uint256 duelId,
         address player,

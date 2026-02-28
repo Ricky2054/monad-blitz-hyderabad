@@ -6,7 +6,10 @@ import {
   useCreateChallenge,
   useAcceptChallenge,
   useBounty,
+  useDuel,
   useNextDuelId,
+  useNextBountyId,
+  useNextTokenId,
   computeCommitment,
   generateNonce,
   MOVES,
@@ -35,9 +38,31 @@ export function ChallengeSection() {
   // ─── Bounty preview ───
   const { data: bounty } = useBounty(BigInt(bountyId || "0"));
   const { data: nextDuelId } = useNextDuelId();
+  const { data: nextBountyId } = useNextBountyId();
+  const { data: nextTokenId } = useNextTokenId();
+  const { data: acceptDuelData } = useDuel(BigInt(acceptDuelId || "0"));
+  const [createError, setCreateError] = useState<string>("");
+  const [acceptError, setAcceptError] = useState<string>("");
 
   const handleCreateChallenge = () => {
-    if (!bountyId || !tokenId || !stake || selectedMove === null || !address || !nextDuelId) return;
+    setCreateError("");
+    if (!bountyId || !tokenId || !stake || selectedMove === null || !address || !nextDuelId) {
+      setCreateError("Fill all fields: Bounty ID, Token ID, Move, and Stake.");
+      return;
+    }
+    // Validate bounty exists
+    if (nextBountyId && BigInt(bountyId) >= nextBountyId) {
+      setCreateError(`Bounty #${bountyId} doesn't exist. Max ID: ${Number(nextBountyId) - 1}`);
+      return;
+    }
+    if (!bounty || !bounty.active) {
+      setCreateError(`Bounty #${bountyId} is inactive or doesn't exist.`);
+      return;
+    }
+    if (bounty.target.toLowerCase() === address.toLowerCase()) {
+      setCreateError("You are the target of this bounty — you can't challenge yourself. Use a different wallet.");
+      return;
+    }
     const nonce = generateNonce();
     setSavedNonce(nonce);
 
@@ -48,7 +73,15 @@ export function ChallengeSection() {
   };
 
   const handleAcceptChallenge = () => {
-    if (!acceptDuelId || !acceptTokenId || !acceptStake || acceptMove === null || !address) return;
+    setAcceptError("");
+    if (!acceptDuelId || !acceptTokenId || !acceptStake || acceptMove === null || !address) {
+      setAcceptError("Fill all fields: Duel ID, Token ID, Move, and Stake.");
+      return;
+    }
+    if (acceptDuelData && acceptDuelData.target.toLowerCase() !== address.toLowerCase()) {
+      setAcceptError("You are not the target of this duel. Only the bounty target can accept.");
+      return;
+    }
     const nonce = generateNonce();
     setAcceptNonce(nonce);
     const commit = computeCommitment(
@@ -77,22 +110,26 @@ export function ChallengeSection() {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-gray-400">Bounty ID</label>
+              <label className="text-xs text-gray-400">Bounty ID {nextBountyId ? <span className="text-monad-purple">(1—{Number(nextBountyId) - 1})</span> : null}</label>
               <input
                 type="number"
                 min="1"
+                max={nextBountyId ? Number(nextBountyId) - 1 : undefined}
                 value={bountyId}
-                onChange={(e) => setBountyId(e.target.value)}
+                onChange={(e) => { setBountyId(e.target.value); setCreateError(""); }}
+                placeholder={nextBountyId ? `1-${Number(nextBountyId) - 1}` : "1"}
                 className="w-full bg-monad-dark border border-monad-border rounded-lg px-3 py-2 text-white"
               />
             </div>
             <div>
-              <label className="text-xs text-gray-400">Your Token ID</label>
+              <label className="text-xs text-gray-400">Your Token ID {nextTokenId ? <span className="text-monad-purple">(1—{Number(nextTokenId) - 1})</span> : null}</label>
               <input
                 type="number"
                 min="1"
+                max={nextTokenId ? Number(nextTokenId) - 1 : undefined}
                 value={tokenId}
-                onChange={(e) => setTokenId(e.target.value)}
+                onChange={(e) => { setTokenId(e.target.value); setCreateError(""); }}
+                placeholder={nextTokenId ? `1-${Number(nextTokenId) - 1}` : "1"}
                 className="w-full bg-monad-dark border border-monad-border rounded-lg px-3 py-2 text-white"
               />
             </div>
@@ -159,13 +196,19 @@ export function ChallengeSection() {
 
           {isSuccess && savedNonce && (
             <div className="bg-green-900/30 border border-green-800 rounded-lg p-3 text-sm">
-              <p className="text-green-400">✅ Challenge created!</p>
+              <p className="text-green-400">✅ Challenge created! Duel ID: {nextDuelId ? String(Number(nextDuelId) - 1) : "?"}</p>
               <p className="text-yellow-300 mt-1 font-bold">
                 ⚠️ SAVE YOUR NONCE (needed for reveal):
               </p>
               <code className="text-xs text-gray-300 break-all block mt-1 bg-monad-dark p-2 rounded">
                 {savedNonce}
               </code>
+            </div>
+          )}
+
+          {createError && (
+            <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-400">
+              ❌ {createError}
             </div>
           )}
         </div>
@@ -188,12 +231,12 @@ export function ChallengeSection() {
                 type="number"
                 min="1"
                 value={acceptDuelId}
-                onChange={(e) => setAcceptDuelId(e.target.value)}
+                onChange={(e) => { setAcceptDuelId(e.target.value); setAcceptError(""); }}
                 className="w-full bg-monad-dark border border-monad-border rounded-lg px-3 py-2 text-white"
               />
             </div>
             <div>
-              <label className="text-xs text-gray-400">Your Token ID</label>
+              <label className="text-xs text-gray-400">Your Token ID {nextTokenId ? <span className="text-monad-purple">(1—{Number(nextTokenId) - 1})</span> : null}</label>
               <input
                 type="number"
                 min="1"
@@ -252,13 +295,19 @@ export function ChallengeSection() {
 
           {accept.isSuccess && acceptNonce && (
             <div className="bg-green-900/30 border border-green-800 rounded-lg p-3 text-sm">
-              <p className="text-green-400">✅ Challenge accepted!</p>
+              <p className="text-green-400">✅ Challenge accepted! Duel is now ACTIVE.</p>
               <p className="text-yellow-300 mt-1 font-bold">
                 ⚠️ SAVE YOUR NONCE (needed for reveal):
               </p>
               <code className="text-xs text-gray-300 break-all block mt-1 bg-monad-dark p-2 rounded">
                 {acceptNonce}
               </code>
+            </div>
+          )}
+
+          {acceptError && (
+            <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-sm text-red-400">
+              ❌ {acceptError}
             </div>
           )}
         </div>
