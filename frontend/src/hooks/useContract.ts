@@ -1,0 +1,201 @@
+import {
+  useReadContract,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+} from "wagmi";
+import { DUEL_ABI } from "@/config/abi";
+import { CONTRACT_ADDRESS } from "@/config/chain";
+import { parseEther, keccak256, encodePacked } from "viem";
+
+// ─── Helpers ────────────────────────────────────────────────
+export const MOVES = ["STRIKE", "GUARD", "HEAL"] as const;
+export type MoveType = 0 | 1 | 2;
+
+export function generateNonce(): `0x${string}` {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return ("0x" +
+    Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")) as `0x${string}`;
+}
+
+export function computeCommitment(
+  duelId: bigint,
+  player: `0x${string}`,
+  move: MoveType,
+  nonce: `0x${string}`
+): `0x${string}` {
+  return keccak256(
+    encodePacked(
+      ["uint256", "address", "uint8", "bytes32"],
+      [duelId, player, move, nonce]
+    )
+  );
+}
+
+export const DUEL_STATES = ["NONE", "CREATED", "ACTIVE", "RESOLVED", "CANCELED"] as const;
+
+// ─── Read Hooks ─────────────────────────────────────────────
+export function useCharacter(tokenId: bigint) {
+  return useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: DUEL_ABI,
+    functionName: "getCharacter",
+    args: [tokenId],
+    query: { enabled: tokenId > 0n },
+  });
+}
+
+export function useBounty(bountyId: bigint) {
+  return useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: DUEL_ABI,
+    functionName: "getBounty",
+    args: [bountyId],
+    query: { enabled: bountyId > 0n },
+  });
+}
+
+export function useDuel(duelId: bigint) {
+  return useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: DUEL_ABI,
+    functionName: "getDuel",
+    args: [duelId],
+    query: { enabled: duelId > 0n },
+  });
+}
+
+export function useNextTokenId() {
+  return useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: DUEL_ABI,
+    functionName: "nextTokenId",
+  });
+}
+
+export function useNextBountyId() {
+  return useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: DUEL_ABI,
+    functionName: "nextBountyId",
+  });
+}
+
+export function useNextDuelId() {
+  return useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: DUEL_ABI,
+    functionName: "nextDuelId",
+  });
+}
+
+// ─── Write Hooks ────────────────────────────────────────────
+export function useMintCharacter() {
+  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const mint = () => {
+    writeContract({
+      address: CONTRACT_ADDRESS,
+      abi: DUEL_ABI,
+      functionName: "mintCharacter",
+    });
+  };
+
+  return { mint, isPending, isConfirming, isSuccess, hash };
+}
+
+export function usePostBounty() {
+  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const post = (target: `0x${string}`, amountMON: string) => {
+    writeContract({
+      address: CONTRACT_ADDRESS,
+      abi: DUEL_ABI,
+      functionName: "postBounty",
+      args: [target],
+      value: parseEther(amountMON),
+    });
+  };
+
+  return { post, isPending, isConfirming, isSuccess, hash };
+}
+
+export function useCreateChallenge() {
+  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const create = (
+    bountyId: bigint,
+    tokenId: bigint,
+    commit: `0x${string}`,
+    stakeMON: string
+  ) => {
+    writeContract({
+      address: CONTRACT_ADDRESS,
+      abi: DUEL_ABI,
+      functionName: "createChallenge",
+      args: [bountyId, tokenId, commit],
+      value: parseEther(stakeMON),
+    });
+  };
+
+  return { create, isPending, isConfirming, isSuccess, hash };
+}
+
+export function useAcceptChallenge() {
+  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const accept = (
+    duelId: bigint,
+    tokenId: bigint,
+    commit: `0x${string}`,
+    stakeMON: string
+  ) => {
+    writeContract({
+      address: CONTRACT_ADDRESS,
+      abi: DUEL_ABI,
+      functionName: "acceptChallenge",
+      args: [duelId, tokenId, commit],
+      value: parseEther(stakeMON),
+    });
+  };
+
+  return { accept, isPending, isConfirming, isSuccess, hash };
+}
+
+export function useRevealMove() {
+  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const reveal = (duelId: bigint, move: MoveType, nonce: `0x${string}`) => {
+    writeContract({
+      address: CONTRACT_ADDRESS,
+      abi: DUEL_ABI,
+      functionName: "revealMove",
+      args: [duelId, move, nonce],
+    });
+  };
+
+  return { reveal, isPending, isConfirming, isSuccess, hash };
+}
+
+export function useResolveDuel() {
+  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const resolve = (duelId: bigint) => {
+    writeContract({
+      address: CONTRACT_ADDRESS,
+      abi: DUEL_ABI,
+      functionName: "resolveDuel",
+      args: [duelId],
+    });
+  };
+
+  return { resolve, isPending, isConfirming, isSuccess, hash };
+}

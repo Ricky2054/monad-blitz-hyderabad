@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0D0D12;
+  --card: #16161E;
+  --border: #2A2A3A;
+  --purple: #836EF9;
+}
+
+body {
+  background: var(--bg);
+  color: #e2e2e2;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+/* Glowing card borders */
+.glow-card {
+  @apply border border-monad-border rounded-xl bg-monad-card p-6;
+  transition: box-shadow 0.3s;
+}
+.glow-card:hover {
+  box-shadow: 0 0 30px #836EF922;
+}
+
+/* Move buttons */
+.move-btn {
+  @apply px-6 py-3 rounded-lg font-bold text-lg transition-all duration-200 cursor-pointer;
+}
+.move-btn:hover {
+  transform: translateY(-2px);
+}
+.move-strike { @apply bg-red-600 hover:bg-red-500 text-white; }
+.move-guard  { @apply bg-blue-600 hover:bg-blue-500 text-white; }
+.move-heal   { @apply bg-green-600 hover:bg-green-500 text-white; }
+
+/* Stat bars */
+.stat-bar {
+  @apply h-2 rounded-full;
+  background: linear-gradient(90deg, #836EF9, #b794f6);
+}
+
+/* Spinner */
+.spinner {
+  @apply w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block;
+}
